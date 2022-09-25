@@ -1,4 +1,7 @@
 const express = require("express");
+var bodyParser = require('body-parser')
+
+
 const {
   getAllProducts,
   createProduct,
@@ -11,6 +14,7 @@ const {
   getAdminProducts,
 } = require("../controllers/productController");
 const { isAuthenticatedUser, authorizeRoles } = require("../middleware/auth");
+const upload = require("../middleware/upload");
 
 const router = express.Router();
 
@@ -22,7 +26,7 @@ router
 
 router
   .route("/admin/product/new")
-  .post(isAuthenticatedUser, authorizeRoles("admin"), createProduct);
+  .post(isAuthenticatedUser, authorizeRoles("admin"),upload.array('files',30),createProduct);
 
 router
   .route("/admin/product/:id")
@@ -37,5 +41,13 @@ router
   .route("/reviews")
   .get(getProductReviews)
   .delete(isAuthenticatedUser, deleteReview);
+
+router 
+  .post("/upload", upload.array("image"), function(req, res, next){
+    const fileinfo = req.files.filename;
+    const title = req.body.title;
+    console.log(title);
+    res.send(fileinfo);
+  })
 
 module.exports = router;

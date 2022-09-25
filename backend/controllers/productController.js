@@ -3,40 +3,51 @@ const ErrorHander = require("../utils/errorhander");
 const catchAsyncErrors = require("../middleware/catchAsyncErrors");
 const ApiFeatures = require("../utils/apifeatures");
 const cloudinary = require("cloudinary");
+const upload = require('../middleware/upload');
+const fs = require("fs");
+
 
 // Create Product -- Admin
 exports.createProduct = catchAsyncErrors(async (req, res, next) => {
-  let images = [];
+  
+  // if (typeof req.body.images === "string") {
+  //   images.push(req.body.images);
+  // } else {
+  //   images = req.body.images;
+  // }
 
-  if (typeof req.body.images === "string") {
-    images.push(req.body.images);
-  } else {
-    images = req.body.images;
-  }
+    const imagesLinks = [];
+  //  for (let i = 0; i < files.length; i++) {
 
-  const imagesLinks = [];
+    // res.send(files)
+  // upload nhieu anh multiple images
+  const files = await req.files
+    if (!files) {
+        const error = new Error('Please choose files')
+        error.httpStatusCode = 400
+        return next(error)
+    }
+   
+   const dai = req.files.length
+    for(let i = 0; i < dai; i++ ){
 
-  for (let i = 0; i < images.length; i++) {
-    const result = await cloudinary.v2.uploader.upload(images[i], {
-      folder: "products",
-    });
+        imagesLinks.push({
+        url: req.files[i].filename,
+     });
+ }
 
-    imagesLinks.push({
-      public_id: result.public_id,
-      url: result.secure_url,
-    });
-  }
+       req.body.images = imagesLinks;
+       req.body.user = req.user.id;
 
-  req.body.images = imagesLinks;
-  req.body.user = req.user.id;
+     const product = await Product.create(req.body);
 
-  const product = await Product.create(req.body);
+    res.status(201).json({
+     success: true,
+     product,
+   })
+   .send(files)
+ });
 
-  res.status(201).json({
-    success: true,
-    product,
-  });
-});
 
 // Get All Product
 exports.getAllProducts = catchAsyncErrors(async (req, res, next) => {
@@ -108,21 +119,29 @@ exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
 
   if (images !== undefined) {
     // Deleting Images From Cloudinary
-    for (let i = 0; i < product.images.length; i++) {
-      await cloudinary.v2.uploader.destroy(product.images[i].public_id);
-    }
-
     const imagesLinks = [];
-
-    for (let i = 0; i < images.length; i++) {
-      const result = await cloudinary.v2.uploader.upload(images[i], {
-        folder: "products",
-      });
-
+    //   await cloudinary.v2.uploader.destroy(product.images[i].public_id);
+    // }
+    
+    
+    // for (let i = 0; i < images.length; i++) {
+      //   const result = await cloudinary.v2.uploader.upload(images[i], {
+        //     use_filename: true,
+        //     unique_filename: false,
+        //     folder: "products",
+        //   });
+        const files = await req.files
+        if (!files) {
+          const error = new Error('Please choose files')
+          error.httpStatusCode = 400
+          return next(error)
+        }
+        
+      for (let i = 0; i < product.images.length; i++) {
       imagesLinks.push({
-        public_id: result.public_id,
-        url: result.secure_url,
-      });
+        url: req.files[i].filename,
+    });
+
     }
 
     req.body.images = imagesLinks;
@@ -151,7 +170,8 @@ exports.deleteProduct = catchAsyncErrors(async (req, res, next) => {
 
   // Deleting Images From Cloudinary
   for (let i = 0; i < product.images.length; i++) {
-    await cloudinary.v2.uploader.destroy(product.images[i].public_id);
+    // await cloudinary.v2.uploader.destroy(product.images[i].public_id);
+     fs.unlink(product.images[i].filename);
   }
 
   await product.remove();
